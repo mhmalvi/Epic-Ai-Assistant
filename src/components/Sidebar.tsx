@@ -16,8 +16,8 @@ import {
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Profile", href: "/profile", icon: User },
-  { name: "Admin Metrics", href: "/admin", icon: BarChart3, adminOnly: true },
   { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Admin Metrics", href: "/admin", icon: BarChart3, adminOnly: true },
 ];
 
 export const Sidebar = () => {
@@ -32,7 +32,7 @@ export const Sidebar = () => {
 
   return (
     <div className={cn(
-      "bg-white border-r border-gray-200 transition-all duration-300 ease-in-out",
+      "bg-white border-r border-gray-200 transition-all duration-300 ease-in-out shadow-sm",
       collapsed ? "w-16" : "w-64"
     )}>
       <div className="flex flex-col h-full">
@@ -53,10 +53,10 @@ export const Sidebar = () => {
               variant="ghost"
               size="sm"
               onClick={() => setCollapsed(!collapsed)}
-              className="h-8 w-8 p-0"
+              className="h-8 w-8 p-0 hover:bg-gray-100"
             >
               <ChevronLeft className={cn(
-                "h-4 w-4 transition-transform",
+                "h-4 w-4 transition-transform duration-200",
                 collapsed && "rotate-180"
               )} />
             </Button>
@@ -74,14 +74,15 @@ export const Sidebar = () => {
                 key={item.name}
                 variant={isActive ? "secondary" : "ghost"}
                 className={cn(
-                  "w-full justify-start h-10",
+                  "w-full justify-start h-10 transition-all duration-200",
                   collapsed && "justify-center px-2",
-                  isActive && "bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 border border-blue-200"
+                  isActive && "bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 border border-blue-200 shadow-sm",
+                  !isActive && "hover:bg-gray-50"
                 )}
                 onClick={() => navigate(item.href)}
               >
                 <Icon className={cn("h-5 w-5", !collapsed && "mr-3")} />
-                {!collapsed && <span>{item.name}</span>}
+                {!collapsed && <span className="font-medium">{item.name}</span>}
                 {!collapsed && item.adminOnly && (
                   <Crown className="ml-auto h-4 w-4 text-yellow-600" />
                 )}
@@ -95,13 +96,13 @@ export const Sidebar = () => {
           <Button
             variant="ghost"
             className={cn(
-              "w-full justify-start h-10 text-red-600 hover:text-red-700 hover:bg-red-50",
+              "w-full justify-start h-10 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors duration-200",
               collapsed && "justify-center px-2"
             )}
             onClick={handleLogout}
           >
             <LogOut className={cn("h-5 w-5", !collapsed && "mr-3")} />
-            {!collapsed && <span>Sign Out</span>}
+            {!collapsed && <span className="font-medium">Sign Out</span>}
           </Button>
         </div>
       </div>
