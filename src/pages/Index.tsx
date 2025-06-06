@@ -1,100 +1,39 @@
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { FeatureCard } from "@/components/FeatureCard";
 import { UsageWidget } from "@/components/UsageWidget";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserData } from "@/hooks/useUserData";
 import { FileText, Mail, Zap, Crown } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [subscription, setSubscription] = useState({
-    plan: "Free",
-    draftsUsed: 2,
-    draftsLimit: 5,
-    emailsUsed: 8,
-    emailsLimit: 20,
-  });
+  const { user, loading: authLoading } = useAuth();
+  const { profile, subscription, usage, limits, loading: dataLoading, incrementUsage, logActivity } = useUserData();
 
-  // Mock authentication check
+  // Redirect to auth if not authenticated
   useEffect(() => {
-    // This will be replaced with actual Supabase auth
-    const mockUser = {
-      name: "John Doe",
-      email: "john@example.com",
-      avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face",
-    };
-    setUser(mockUser);
-  }, []);
-
-  const handleTriggerDraft = async () => {
-    if (subscription.draftsUsed >= subscription.draftsLimit) {
-      toast({
-        title: "Limit Reached",
-        description: "You've reached your draft generation limit. Upgrade to continue.",
-        variant: "destructive",
-      });
-      return;
+    if (!authLoading && !user) {
+      navigate("/auth");
     }
+  }, [user, authLoading, navigate]);
 
-    try {
-      // This will call your n8n webhook
-      toast({
-        title: "Draft Generated",
-        description: "Your AI draft has been created successfully!",
-      });
-      
-      setSubscription(prev => ({
-        ...prev,
-        draftsUsed: prev.draftsUsed + 1
-      }));
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to generate draft. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+  if (authLoading || dataLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
-  const handleClassifyEmail = async () => {
-    if (subscription.emailsUsed >= subscription.emailsLimit) {
-      toast({
-        title: "Limit Reached",
-        description: "You've reached your email classification limit. Upgrade to continue.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      // This will call your n8n webhook
-      toast({
-        title: "Email Classified",
-        description: "Email has been processed and classified successfully!",
-      });
-      
-      setSubscription(prev => ({
-        ...prev,
-        emailsUsed: prev.emailsUsed + 1
-      }));
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to classify email. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  if (!user) {
+  if (!user || !profile || !subscription || !usage || !limits) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
         <Card className="w-full max-w-md">
@@ -107,7 +46,7 @@ const Index = () => {
           <CardContent>
             <Button 
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-              onClick={() => navigate("/login")}
+              onClick={() => navigate("/auth")}
             >
               Sign In
             </Button>
@@ -117,19 +56,77 @@ const Index = () => {
     );
   }
 
+  const handleTriggerDraft = async () => {
+    if (limits.drafts !== -1 && usage.drafts >= limits.drafts) {
+      toast({
+        title: "Limit Reached",
+        description: "You've reached your draft generation limit. Upgrade to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await incrementUsage('drafts');
+      await logActivity('draft_generated', 'AI draft was generated successfully');
+      
+      toast({
+        title: "Draft Generated",
+        description: "Your AI draft has been created successfully!",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate draft. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleClassifyEmail = async () => {
+    if (limits.emails !== -1 && usage.emails >= limits.emails) {
+      toast({
+        title: "Limit Reached",
+        description: "You've reached your email classification limit. Upgrade to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await incrementUsage('emails');
+      await logActivity('email_classified', 'Email has been processed and classified');
+      
+      toast({
+        title: "Email Classified",
+        description: "Email has been processed and classified successfully!",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to classify email. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <div className="flex">
         <Sidebar />
         <div className="flex-1 flex flex-col">
-          <Header user={user} />
+          <Header user={{
+            name: profile.name,
+            email: profile.email,
+            avatar: profile.avatar_url || `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face`
+          }} />
           
           <main className="flex-1 p-6 overflow-auto">
             <div className="max-w-7xl mx-auto space-y-6">
               {/* Welcome Section */}
               <div className="text-center py-8">
                 <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                  Welcome back, {user.name}! 👋
+                  Welcome back, {profile.name}! 👋
                 </h1>
                 <p className="text-xl text-gray-600">
                   Ready to supercharge your productivity with AI?
@@ -140,28 +137,28 @@ const Index = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <UsageWidget
                   title="Current Plan"
-                  value={subscription.plan}
+                  value={subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)}
                   icon={Crown}
                   color="purple"
                 />
                 <UsageWidget
                   title="Drafts Used"
-                  value={`${subscription.draftsUsed}/${subscription.draftsLimit}`}
-                  progress={(subscription.draftsUsed / subscription.draftsLimit) * 100}
+                  value={limits.drafts === -1 ? `${usage.drafts}/∞` : `${usage.drafts}/${limits.drafts}`}
+                  progress={limits.drafts === -1 ? 0 : (usage.drafts / limits.drafts) * 100}
                   icon={FileText}
                   color="blue"
                 />
                 <UsageWidget
                   title="Emails Processed"
-                  value={`${subscription.emailsUsed}/${subscription.emailsLimit}`}
-                  progress={(subscription.emailsUsed / subscription.emailsLimit) * 100}
+                  value={limits.emails === -1 ? `${usage.emails}/∞` : `${usage.emails}/${limits.emails}`}
+                  progress={limits.emails === -1 ? 0 : (usage.emails / limits.emails) * 100}
                   icon={Mail}
                   color="green"
                 />
                 <UsageWidget
-                  title="API Calls"
-                  value="142/1000"
-                  progress={14.2}
+                  title="Content Analysis"
+                  value={limits.content_analysis === -1 ? `${usage.content_analysis}/∞` : `${usage.content_analysis}/${limits.content_analysis}`}
+                  progress={limits.content_analysis === -1 ? 0 : (usage.content_analysis / limits.content_analysis) * 100}
                   icon={Zap}
                   color="orange"
                 />
@@ -175,8 +172,8 @@ const Index = () => {
                   icon={FileText}
                   color="blue"
                   onClick={handleTriggerDraft}
-                  disabled={subscription.draftsUsed >= subscription.draftsLimit}
-                  usageText={`${subscription.draftsUsed}/${subscription.draftsLimit} used`}
+                  disabled={limits.drafts !== -1 && usage.drafts >= limits.drafts}
+                  usageText={limits.drafts === -1 ? `${usage.drafts} used` : `${usage.drafts}/${limits.drafts} used`}
                 />
                 
                 <FeatureCard
@@ -185,8 +182,8 @@ const Index = () => {
                   icon={Mail}
                   color="green"
                   onClick={handleClassifyEmail}
-                  disabled={subscription.emailsUsed >= subscription.emailsLimit}
-                  usageText={`${subscription.emailsUsed}/${subscription.emailsLimit} used`}
+                  disabled={limits.emails !== -1 && usage.emails >= limits.emails}
+                  usageText={limits.emails === -1 ? `${usage.emails} used` : `${usage.emails}/${limits.emails} used`}
                 />
               </div>
 

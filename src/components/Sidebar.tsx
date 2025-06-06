@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   LayoutDashboard, 
   User, 
@@ -24,10 +25,15 @@ export const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { signOut } = useAuth();
 
-  const handleLogout = () => {
-    // This will be replaced with actual auth logout
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate("/auth");
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   return (
